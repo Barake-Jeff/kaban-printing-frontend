@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #f9f9f7;
+    font-family: 'Hanken Grotesk', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+  .material-symbols-outlined.filled {
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+}
+
+@layer components {
+  /* Reusable status badges */
+  .badge { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-status-badge; }
+  .badge-pending   { @apply bg-orange-100 text-orange-700; }
+  .badge-printing  { @apply bg-blue-100 text-blue-700; }
+  .badge-ready     { @apply bg-green-100 text-green-700; }
+  .badge-delivered { @apply bg-gray-100 text-gray-600; }
+  .badge-paid      { @apply bg-green-100 text-green-700; }
+  .badge-unpaid    { @apply bg-red-100 text-red-700; }
+  .badge-pickup-pay{ @apply bg-purple-100 text-purple-700; }
+  .badge-pickup    { @apply bg-gray-100 text-gray-600; }
+  .badge-delivery  { @apply bg-indigo-100 text-indigo-700; }
+
+  /* Primary CTA button (orange) */
+  .btn-primary {
+    @apply h-12 w-full font-bold rounded-lg
+           hover:brightness-105 active:scale-[0.98] transition-all;
+    background-color: #F97316;
+    color: #5c2400;
+  }
+  /* Outlined button */
+  .btn-outline {
+    @apply h-12 w-full border-2 border-primary text-primary
+           font-bold rounded-lg hover:bg-primary/5 active:scale-[0.98] transition-all;
+  }
+  /* Navy solid button */
+  .btn-navy {
+    @apply h-12 w-full bg-primary-container text-on-primary
+           font-bold rounded-lg hover:brightness-110 active:scale-[0.98] transition-all;
+  }
+
+  /* Form inputs */
+  .form-input {
+    @apply w-full border border-outline-variant rounded-lg px-md py-sm text-body-sm
+           bg-surface-container-lowest text-on-surface
+           focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary
+           placeholder-on-surface-variant/50 transition-all;
+  }
+  .form-label {
+    @apply block text-body-sm font-semibold text-on-surface-variant mb-xs;
+  }
+
+  /* Cards */
+  .card {
+    @apply bg-surface-container-lowest rounded-xl border border-outline-variant/40 p-md;
+  }
+  .card-surface {
+    @apply bg-surface-container rounded-xl p-lg;
+  }
+}
