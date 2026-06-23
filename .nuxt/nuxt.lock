@@ -1,0 +1,9 @@
+{
+  "pid": 5396,
+  "startedAt": 1782212448091,
+  "command": "dev",
+  "cwd": "C:/Users/Barake/Desktop/repos/kaban-printing-frontend",
+  "port": 3000,
+  "hostname": "::1",
+  "url": "http://[::1]:3000"
+}
