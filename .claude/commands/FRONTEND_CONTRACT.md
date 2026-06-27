@@ -139,8 +139,8 @@ Returns single object from the array above, or 404 if not found.
 {
   fileId:    string,     // UUID saved in files table
   fileName:  string,     // original filename
-  fileUrl:   string,     // path to original file
-  pdfUrl:    string,     // path to converted PDF
+  fileUrl:   string,     // MinIO presigned URL for original (expires 1h)
+  pdfUrl:    string,     // MinIO presigned URL for converted PDF (expires 1h)
   pageCount: number,     // actual page count from PDF parser
 }
 ```
@@ -291,7 +291,7 @@ Every field in this table must match exactly between dummy.js and the backend.
 | `id`                | `id`                    | `id`                |
 | `userId`            | `userId`                | `user_id`           |
 | `fileName`          | `fileName`              | `file_name`         |
-| `fileType`          | `fileType`              | (derived from mime) |
+| `fileType`          | `fileType`              | (derived from mime_type) |
 | `instructions`      | `instructions`          | `instructions`      |
 | `pages`             | `pages`                 | `pages`             |
 | `copies`            | `copies`                | `copies`            |

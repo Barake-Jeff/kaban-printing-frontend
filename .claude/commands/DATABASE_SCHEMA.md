@@ -75,7 +75,7 @@ CREATE TABLE jobs (
   user_id         VARCHAR(36)  NOT NULL,
   file_id         VARCHAR(36)  NULL,
   file_name       VARCHAR(500) NULL,
-  file_url        VARCHAR(1000) NULL,
+  file_key        VARCHAR(1000) NULL,  -- MinIO object key for the original file
   instructions    TEXT         NULL,
   pages           INT          NOT NULL DEFAULT 1,
   copies          INT          NOT NULL DEFAULT 1,
@@ -102,7 +102,7 @@ CREATE TABLE jobs (
 );
 ```
 
-**TypeORM entity property mapping:**
+**Sequelize model property mapping:**
 
 | MySQL column      | TypeScript property  |
 |-------------------|----------------------|
@@ -110,7 +110,7 @@ CREATE TABLE jobs (
 | `user_id`         | `userId`             |
 | `file_id`         | `fileId`             |
 | `file_name`       | `fileName`           |
-| `file_url`        | `fileUrl`            |
+| `file_key`        | `fileKey`            |
 | `instructions`    | `instructions`       |
 | `pages`           | `pages`              |
 | `copies`          | `copies`             |
@@ -132,6 +132,9 @@ CREATE TABLE jobs (
 
 ## Table: `files`
 
+> `file_key` and `pdf_key` store MinIO object keys (e.g. `originals/userId/uuid.pdf`).
+> Presigned URLs are generated at runtime — never stored in the DB.
+
 ```sql
 CREATE TABLE files (
   id            VARCHAR(36)   PRIMARY KEY DEFAULT (UUID()),
@@ -141,8 +144,8 @@ CREATE TABLE files (
   mime_type     VARCHAR(100)  NOT NULL,
   size_bytes    INT           NOT NULL,
   page_count    INT           NOT NULL DEFAULT 1,
-  file_url      VARCHAR(1000) NOT NULL,
-  pdf_url       VARCHAR(1000) NULL,     -- path to converted PDF version
+  file_key      VARCHAR(1000) NOT NULL,   -- MinIO object key for original file
+  pdf_key       VARCHAR(1000) NULL,       -- MinIO object key for converted PDF
   created_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -150,7 +153,7 @@ CREATE TABLE files (
 );
 ```
 
-**TypeORM entity property mapping:**
+**Sequelize model property mapping:**
 
 | MySQL column    | TypeScript property  |
 |-----------------|----------------------|
@@ -159,8 +162,8 @@ CREATE TABLE files (
 | `mime_type`     | `mimeType`           |
 | `size_bytes`    | `sizeBytes`          |
 | `page_count`    | `pageCount`          |
-| `file_url`      | `fileUrl`            |
-| `pdf_url`       | `pdfUrl`             |
+| `file_key`      | `fileKey`            |
+| `pdf_key`       | `pdfKey`             |
 | `created_at`    | `createdAt`          |
 
 ---

@@ -6,6 +6,8 @@ kaban-frontend/.output/
 # Backend
 kaban-backend/node_modules/
 kaban-backend/dist/
+kaban-backend/.env
+kaban-backend/.uploads/
 
 # Root artifacts
 .nuxt/

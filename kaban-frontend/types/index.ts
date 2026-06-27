@@ -5,7 +5,7 @@ export type DeliveryType = 'pickup' | 'delivery'
 export type PaymentMethod = 'mpesa' | 'pay_on_pickup'
 export type PaymentStatus = 'paid' | 'unpaid' | 'pay_on_pickup'
 export type JobStatus = 'pending' | 'printing' | 'ready' | 'delivered'
-export type UserRole = 'customer' | 'admin'
+export type UserRole = 'customer' | 'clerk' | 'admin'
 export type AlertType = 'unpaid' | 'wait' | 'delivery'
 
 export interface User {
