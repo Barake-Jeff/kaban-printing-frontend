@@ -16,14 +16,15 @@ printease
 
 ## Tables overview
 
-| Table               | Purpose                                          |
-|---------------------|--------------------------------------------------|
-| `users`             | All users: customers, clerks, admins             |
-| `jobs`              | Print job records                                |
-| `files`             | Uploaded file metadata                           |
-| `payments`          | Payment records linked to jobs                   |
-| `refresh_tokens`    | JWT refresh token store (for logout/blacklist)   |
-| `notifications_log` | Record of every SMS/WhatsApp notification sent   |
+| Table                | Purpose                                          |
+|----------------------|--------------------------------------------------|
+| `users`              | All users: customers, clerks, admins             |
+| `jobs`               | Print job records                                |
+| `files`              | Uploaded file metadata                           |
+| `payments`           | Payment records linked to jobs                   |
+| `refresh_tokens`     | JWT refresh token store (for logout/blacklist)   |
+| `push_subscriptions` | Web Push subscription endpoints per user         |
+| `notifications_log`  | Record of every notification sent (push/SMS/WA)  |
 
 ---
 
@@ -47,7 +48,7 @@ CREATE TABLE users (
 );
 ```
 
-**TypeORM entity property mapping:**
+**Sequelize model property mapping:**
 
 | MySQL column     | TypeScript property  |
 |------------------|----------------------|
@@ -221,26 +222,77 @@ Store a hash of the token, not the token itself. On refresh, hash the incoming t
 
 ---
 
+## Table: `push_subscriptions`
+
+Stores Web Push API subscription objects per user. One row per active browser/device.
+Replacing a subscription (re-subscribing) deletes the old row for that user and inserts a new one.
+
+```sql
+CREATE TABLE push_subscriptions (
+  id         VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+  user_id    VARCHAR(36) NOT NULL,
+  endpoint   TEXT        NOT NULL,   -- browser-generated push URL
+  p256dh     TEXT        NOT NULL,   -- ECDH public key
+  auth       TEXT        NOT NULL,   -- authentication secret
+  created_at DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_user_id (user_id)
+);
+```
+
+**Sequelize model:** `src/modules/push/models/push-subscription.model.ts`
+
+**Sequelize model property mapping:**
+
+| MySQL column | TypeScript property |
+|--------------|---------------------|
+| `user_id`    | `userId`            |
+| `endpoint`   | `endpoint`          |
+| `p256dh`     | `p256dh`            |
+| `auth`       | `auth`              |
+| `created_at` | `createdAt`         |
+
+---
+
 ## Table: `notifications_log`
+
+Records every notification attempt regardless of outcome. The `job_id` column is a plain string (no FK) until the `jobs` table is built.
 
 ```sql
 CREATE TABLE notifications_log (
   id          VARCHAR(36)  PRIMARY KEY DEFAULT (UUID()),
   job_id      VARCHAR(36)  NOT NULL,
   user_id     VARCHAR(36)  NOT NULL,
-  channel     ENUM('sms', 'whatsapp') NOT NULL,
-  trigger     VARCHAR(100) NOT NULL,   -- e.g. 'job_received', 'payment_confirmed', 'job_ready'
-  phone       VARCHAR(20)  NOT NULL,
+  channel     ENUM('sms', 'whatsapp', 'push') NOT NULL,
+  trigger     VARCHAR(100) NOT NULL,
+  phone       VARCHAR(20)  NULL,        -- NULL for push channel
   message     TEXT         NOT NULL,
   status      ENUM('sent', 'failed') NOT NULL DEFAULT 'sent',
-  provider_id VARCHAR(200) NULL,       -- Africa's Talking message ID
+  provider_id VARCHAR(200) NULL,        -- AT message ID or push endpoint hash
   sent_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-  FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   INDEX idx_job_id (job_id)
 );
 ```
+
+> Note: `job_id` has no FK constraint yet because the `jobs` table is not yet built.
+> Add the FK (`REFERENCES jobs(id) ON DELETE CASCADE`) when the jobs module is implemented.
+
+**Sequelize model property mapping:**
+
+| MySQL column  | TypeScript property |
+|---------------|---------------------|
+| `job_id`      | `jobId`             |
+| `user_id`     | `userId`            |
+| `channel`     | `channel`           |
+| `trigger`     | `trigger`           |
+| `phone`       | `phone`             |
+| `message`     | `message`           |
+| `status`      | `status`            |
+| `provider_id` | `providerId`        |
+| `sent_at`     | `sentAt`            |
 
 ---
 
@@ -250,7 +302,7 @@ CREATE TABLE notifications_log (
 const PRICING = {
   bwPerPage:    5,    // KES per page black & white
   colorPerPage: 20,   // KES per page colour
-  doubleSidedMultiplier: 1.8,  // slightly less than 2x (1 sheet, 2 sides)
+  doubleSidedMultiplier: 1.8,
   deliveryFee:  50,   // KES flat delivery fee
 };
 
@@ -269,31 +321,24 @@ This must match `calculateCost()` in `frontend/src/data/dummy.js` exactly.
 
 ## Migration strategy
 
-Use Sequelize CLI migrations for all schema changes after initial setup.
+Use Sequelize `synchronize: true` in development (auto-creates tables).
+Use Sequelize CLI migrations for production schema changes.
 
 ```bash
-# Generate a migration
 npx sequelize-cli migration:generate --name add-job-status-index
-
-# Run pending migrations
 npx sequelize-cli db:migrate
-
-# Undo the last migration
 npx sequelize-cli db:migrate:undo
 ```
 
-Config file: `src/database/config.js` (or `.ts` with ts-node).
-Migration files live in `src/database/migrations/`.
-Model files live in `src/database/models/`.
-
-Never use `sync({ force: true })` in production. Use `sync()` only in development if not using migrations.
+Never use `sync({ force: true })` in production.
 
 ---
 
 ## Seed data (for development)
 
-The backend should include a seed script that creates:
-- 1 admin user: phone `0700000000`, password `admin`, role `admin`
-- 1 customer user: phone `0712345678`, password `password`, role `customer`, houseNumber `14B`, estate `Westlands Gardens`
+```
+Admin:    phone 0700000000, password admin, role admin
+Customer: phone 0712345678, password password, role customer, houseNumber 14B, estate Westlands Gardens
+```
 
-These match the dummy login credentials used in the frontend during development.
+Run with: `npm run seed` (from `kaban-backend/`)

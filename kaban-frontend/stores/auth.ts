@@ -47,6 +47,7 @@ export const useAuthStore = defineStore('auth', () => {
       localStorage.setItem('accessToken', accessToken)
       localStorage.setItem('refreshToken', refreshToken)
       user.value = userData
+      schedulePushPrompt()
     } catch (e: any) {
       error.value =
         e?.data?.message ?? e?.message ?? 'Login failed. Check your credentials and try again.'
@@ -76,6 +77,7 @@ export const useAuthStore = defineStore('auth', () => {
       localStorage.setItem('accessToken', accessToken)
       localStorage.setItem('refreshToken', refreshToken)
       user.value = userData
+      schedulePushPrompt()
     } catch (e: any) {
       error.value =
         e?.data?.message ?? e?.message ?? 'Registration failed. Please try again.'
@@ -105,5 +107,35 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
   }
 
-  return { user, loading, error, isLoggedIn, isAdmin, login, signup, logout }
+  function schedulePushPrompt() {
+    if (!process.client) return
+    setTimeout(async () => {
+      if (typeof Notification === 'undefined' || Notification.permission !== 'default') return
+      const { isSupported, requestAndSubscribe } = usePushNotifications()
+      if (isSupported.value) await requestAndSubscribe()
+    }, 2000)
+  }
+
+  async function adminLogin({ phone, password }: LoginPayload) {
+    loading.value = true
+    error.value   = null
+
+    try {
+      const res = await $fetch<any>('/admin/auth/login', {
+        baseURL: base, method: 'POST', body: { phone, password },
+      })
+
+      const { accessToken, refreshToken, user: userData } = res.data
+      localStorage.setItem('accessToken', accessToken)
+      localStorage.setItem('refreshToken', refreshToken)
+      user.value = userData
+    } catch (e: any) {
+      error.value =
+        e?.data?.message ?? e?.message ?? 'Invalid credentials.'
+    } finally {
+      loading.value = false
+    }
+  }
+
+  return { user, loading, error, isLoggedIn, isAdmin, login, adminLogin, signup, logout }
 })

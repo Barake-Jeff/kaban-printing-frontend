@@ -48,4 +48,9 @@ export class User extends Model {
   @Default(0)
   @Column({ type: DataType.INTEGER, field: 'loyalty_points' })
   loyaltyPoints: number;
+
+  @Default(true)
+  @Column({ type: DataType.BOOLEAN, allowNull: false })
+  active: boolean;
+
 }

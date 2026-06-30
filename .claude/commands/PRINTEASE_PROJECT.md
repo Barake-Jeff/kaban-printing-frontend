@@ -31,7 +31,6 @@ Build order:
   8. admin      — stats, customer list, queue management endpoints
   9. Frontend wiring — replace dummy store methods with real $fetch calls
 
-Do NOT touch:  Nuxt frontend pages/components unless wiring stores
 Do NOT build:  Real Daraja STK Push or Africa's Talking SMS (stubs only)
 ```
 

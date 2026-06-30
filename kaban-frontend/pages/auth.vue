@@ -59,6 +59,7 @@
                   <input
                     v-model="signupForm.phone"
                     type="tel"
+                    placeholder="0712 345 678"
                     class="input-field"
                     required
                   />
@@ -129,7 +130,9 @@
                 </div>
               </div>
 
-              <p v-if="signupError" class="text-error font-body-sm text-body-sm">{{ signupError }}</p>
+              <p v-if="signupError || auth.error" class="text-error font-body-sm text-body-sm">
+                {{ signupError || auth.error }}
+              </p>
 
               <p class="italic text-on-surface-variant font-body-sm text-body-sm pt-2 font-normal">
                 Your house number is how we identify your orders.
@@ -201,13 +204,22 @@
           </button>
 
           <p class="font-body-sm text-body-sm text-center text-on-surface-variant pt-sm">
-            Demo customer: <strong>0712345678</strong> / <strong>password</strong><br>
-            Admin: <strong>0700000000</strong> / <strong>admin</strong>
+            Demo: <strong>0712345678</strong> / <strong>password</strong>
           </p>
         </div>
 
+        <!-- Staff link -->
+        <p class="text-center mt-xl">
+          <NuxtLink
+            to="/admin/login"
+            class="text-xs text-on-surface-variant/50 hover:text-on-surface-variant transition-colors"
+          >
+            Staff? Sign in here →
+          </NuxtLink>
+        </p>
+
         <!-- Illustration -->
-        <div class="mt-xl text-center">
+        <div class="mt-md text-center">
           <img
             src="https://lh3.googleusercontent.com/aida-public/AB6AXuAbmbtIHqRKdcMynD5YK3ENsxjkYSiBxYL3ulRpr0mtO4hF4wJ6f9_Tfm4bNKAQVl8TSedOwfcnOZW-iaqx4p43AaKw84KoH1B1UT6AKby5vclFSlbLoWSEhQZzwf24jlrP8LUCdUAlAvvEiZLuZ56O0o-UOtgM6_m3Y1QEZm7rAJjgDUKglNsqpWfzqaIw3Bt02S-HBBztE0VN3sUn3zr6qvp5ZKtnKXedG68zaBAo7umVxwkyxoZw3b5y3fnNNEXBVwQQGyFHcIM"
             alt="PrintEase Corporate Service"
@@ -260,7 +272,7 @@ const signupError   = ref('')
 
 const signupForm = reactive<SignupPayload>({
   name: '',
-  phone: '+254',
+  phone: '',
   houseNumber: '',
   estate: '',
   password: '',
@@ -274,6 +286,7 @@ const loginForm = reactive<LoginPayload>({
 
 async function handleSignup() {
   signupError.value = ''
+  auth.error = null
   if (signupForm.password.length < 8) {
     signupError.value = 'Password must be at least 8 characters.'
     return
@@ -289,7 +302,10 @@ async function handleSignup() {
 async function handleLogin() {
   await auth.login({ phone: loginForm.phone, password: loginForm.password })
   if (!auth.error) {
-    router.push(auth.isAdmin ? { name: 'admin' } : { name: 'app' })
+    const role = auth.user?.role
+    if (role === 'admin') router.push({ name: 'admin' })
+    else if (role === 'clerk') router.push({ name: 'admin-queue' })
+    else router.push({ name: 'app' })
   }
 }
 </script>

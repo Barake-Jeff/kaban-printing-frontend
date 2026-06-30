@@ -366,11 +366,11 @@
       </div>
       <button
         @click="handleNext"
-        :disabled="jobs.loading"
+        :disabled="jobs.loading || uploadLoading"
         class="w-full h-12 text-on-primary font-label-bold text-label-bold rounded-lg uppercase tracking-wider active:scale-[0.98] transition-all disabled:opacity-60"
         style="background-color: #F97316;"
       >
-        Next
+        {{ uploadLoading ? 'Uploading…' : 'Next' }}
       </button>
     </div>
 
@@ -378,7 +378,6 @@
 </template>
 
 <script setup lang="ts">
-import { calculateCost } from '~/data/dummy'
 import type { SubmitJobPayload, ColorMode, SideMode } from '~/types'
 
 definePageMeta({
@@ -387,12 +386,14 @@ definePageMeta({
   role: 'customer',
 })
 
-const router       = useRouter()
-const jobs         = useJobsStore()
-const step         = ref(0)
-const stepError    = ref('')
-const fileInputRef = ref<HTMLInputElement | null>(null)
-const selectedFile = ref<File | null>(null)
+const router         = useRouter()
+const jobs           = useJobsStore()
+const step           = ref(0)
+const stepError      = ref('')
+const fileInputRef   = ref<HTMLInputElement | null>(null)
+const selectedFile   = ref<File | null>(null)
+const fileId         = ref<string | null>(null)
+const uploadLoading  = ref(false)
 
 const stepLabels = ['Upload', 'Settings', 'Delivery', 'Summary']
 
@@ -416,15 +417,14 @@ const sideOpts: Array<{ val: SideMode; label: string }> = [
   { val: 'double', label: 'Double sided' },
 ]
 
-const costEstimate = computed(() =>
-  calculateCost({
-    pages:        form.pages || 1,
-    copies:       form.copies,
-    colorMode:    form.colorMode,
-    sides:        form.sides,
-    deliveryType: form.deliveryType,
-  })
-)
+const costEstimate = computed(() => {
+  const pages      = form.pages || 1
+  const perPage    = form.colorMode === 'color' ? 20 : 5
+  const sidesMult  = form.sides === 'double' ? 1.8 : 1
+  const printCost  = Math.round(pages * form.copies * perPage * sidesMult)
+  const deliveryFee = form.deliveryType === 'delivery' ? 50 : 0
+  return { printCost, deliveryFee, total: printCost + deliveryFee }
+})
 
 function triggerFileInput() { fileInputRef.value?.click() }
 
@@ -432,6 +432,7 @@ function handleFileChange(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
   selectedFile.value = file
+  fileId.value = null // reset so it gets uploaded on next
   form.fileName = file.name
   form.pages = file.type === 'application/pdf'
     ? Math.max(1, Math.round(file.size / 51200))
@@ -450,12 +451,37 @@ function handleBack() {
 
 async function handleNext() {
   stepError.value = ''
-  if (step.value === 0 && !selectedFile.value && !form.instructions.trim()) {
-    stepError.value = 'Please upload a file or enter print instructions.'
+
+  if (step.value === 0) {
+    if (!selectedFile.value && !form.instructions.trim()) {
+      stepError.value = 'Please upload a file or enter print instructions.'
+      return
+    }
+    // Upload file to backend if one is selected and not yet uploaded
+    if (selectedFile.value && !fileId.value) {
+      uploadLoading.value = true
+      try {
+        const api      = useApi()
+        const formData = new FormData()
+        formData.append('file', selectedFile.value)
+        const res = await api<any>('/files/upload', { method: 'POST', body: formData })
+        fileId.value  = res.data.fileId
+        form.fileName = res.data.fileName
+        form.pages    = res.data.pageCount
+      } catch (e: any) {
+        stepError.value = e?.data?.message ?? 'File upload failed. Please try again.'
+        uploadLoading.value = false
+        return
+      }
+      uploadLoading.value = false
+    }
+    step.value++
     return
   }
+
   if (step.value < 3) { step.value++; return }
-  const job = await jobs.submitJob({ ...form })
+
+  const job = await jobs.submitJob({ ...form, fileId: fileId.value ?? undefined } as any)
   if (job) router.push({ name: 'app-payment' })
 }
 </script>
