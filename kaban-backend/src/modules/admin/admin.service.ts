@@ -6,6 +6,7 @@ import { Job, JobStatus, PaymentStatus } from '../jobs/models/job.model';
 import { User, UserRole } from '../users/models/user.model';
 import { Payment, PaymentRecordStatus, PaymentRecordMethod } from '../payments/models/payment.model';
 import { Setting } from './models/setting.model';
+import { FilesService } from '../files/files.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { UpdateJobStatusDto } from './dto/update-job-status.dto';
 import { SaveNotesDto } from './dto/save-notes.dto';
@@ -50,6 +51,7 @@ export class AdminService {
     @InjectModel(User)     private readonly userModel:    typeof User,
     @InjectModel(Payment)  private readonly paymentModel: typeof Payment,
     @InjectModel(Setting)  private readonly settingModel: typeof Setting,
+    private readonly filesService: FilesService,
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -165,6 +167,14 @@ export class AdminService {
     if (!job) throw new NotFoundException('Job not found');
     await job.destroy();
     return { success: true };
+  }
+
+  async getFileUrl(jobId: string) {
+    const job = await this.jobModel.findOne({ where: { id: jobId } });
+    if (!job) throw new NotFoundException('Job not found');
+    if (!job.fileId) throw new NotFoundException('No file attached to this job');
+    const url = await this.filesService.getPresignedUrlForAdmin(job.fileId);
+    return { url, fileName: job.fileName ?? 'document' };
   }
 
   // ── Customers ──────────────────────────────────────────────────────────────

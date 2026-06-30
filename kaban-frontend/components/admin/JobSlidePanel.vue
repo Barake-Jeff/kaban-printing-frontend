@@ -19,6 +19,15 @@
         <div>
           <p class="text-xs text-gray-400 font-mono">{{ job.id.slice(0, 8) }}…</p>
           <h2 class="font-bold text-gray-900 mt-0.5">{{ job.fileName ?? 'Walk-in job' }}</h2>
+          <button
+            v-if="job.fileName"
+            @click="downloadFile"
+            :disabled="downloading"
+            class="mt-1 flex items-center gap-1 text-xs text-primary hover:text-primary/70 font-medium transition-colors disabled:opacity-50"
+          >
+            <span class="material-symbols-outlined" style="font-size:16px;">download</span>
+            {{ downloading ? 'Getting link…' : 'Download file' }}
+          </button>
         </div>
         <button @click="$emit('close')" class="p-2 hover:bg-gray-100 rounded-full transition-colors">
           <span class="material-symbols-outlined text-gray-500">close</span>
@@ -128,9 +137,22 @@
 </template>
 
 <script setup lang="ts">
+import { toast } from 'vue-sonner'
 import type { Job } from '~/types'
 
 const props = defineProps<{ job: Job | null }>()
+
+const admin = useAdminStore()
+const downloading = ref(false)
+
+async function downloadFile() {
+  if (!props.job?.id) return
+  downloading.value = true
+  const url = await admin.fetchJobFileUrl(props.job.id)
+  downloading.value = false
+  if (url) window.open(url, '_blank')
+  else toast.error('Could not get download link')
+}
 defineEmits<{
   'close': []
   'update-status': [jobId: string, status: Job['status']]

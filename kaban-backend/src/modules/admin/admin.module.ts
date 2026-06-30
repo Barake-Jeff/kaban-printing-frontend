@@ -7,11 +7,13 @@ import { User } from '../users/models/user.model';
 import { Payment } from '../payments/models/payment.model';
 import { Setting } from './models/setting.model';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { FilesModule } from '../files/files.module';
 
 @Module({
   imports: [
     SequelizeModule.forFeature([Job, User, Payment, Setting]),
     NotificationsModule,
+    FilesModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],

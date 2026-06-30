@@ -161,6 +161,16 @@ export const useAdminStore = defineStore('admin', () => {
     reportData.value = await fetch()
   }
 
+  async function fetchJobFileUrl(jobId: string): Promise<string | null> {
+    try {
+      const api = useApi()
+      const res = await api<any>(`/admin/jobs/${jobId}/file`)
+      return res.data.url as string
+    } catch {
+      return null
+    }
+  }
+
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   function selectJob(job: Job)   { selectedJob.value = job }
@@ -173,7 +183,7 @@ export const useAdminStore = defineStore('admin', () => {
     // queue / stats / customers (real API)
     fetchQueue, fetchStats, fetchCustomers,
     updateJobStatus, markAsPaid, saveNotes, cancelJob,
-    selectJob, clearSelectedJob, lookupCustomer,
+    selectJob, clearSelectedJob, lookupCustomer, fetchJobFileUrl,
     // polling
     startPolling, stopPolling,
     // staff (composable-backed)

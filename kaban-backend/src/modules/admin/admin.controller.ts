@@ -67,6 +67,11 @@ export class AdminController {
     return this.adminService.cancelJob(id);
   }
 
+  @Get('jobs/:id/file')
+  getJobFile(@Param('id') id: string) {
+    return this.adminService.getFileUrl(id);
+  }
+
   // ── Staff (admin only) ─────────────────────────────────────────────────────
 
   @Get('staff')

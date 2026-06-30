@@ -92,4 +92,11 @@ export class FilesService implements OnModuleInit {
     const url = await this.client.presignedGetObject(this.bucket, key, 3600);
     return { url };
   }
+
+  async getPresignedUrlForAdmin(fileId: string): Promise<string> {
+    const file = await this.fileModel.findOne({ where: { id: fileId } });
+    if (!file) throw new NotFoundException('File not found');
+    const key = file.pdfKey ?? file.fileKey;
+    return this.client.presignedGetObject(this.bucket, key, 3600);
+  }
 }
