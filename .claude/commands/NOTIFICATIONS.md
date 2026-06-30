@@ -173,20 +173,20 @@ NUXT_PUBLIC_VAPID_KEY=<same generated public key>
 
 ## NotificationsService.send() — calling pattern
 
-Since the `jobs` table is not yet built, callers pass context directly:
+Callers pass context directly (job + user data already in scope):
 
 ```typescript
 import { NotificationsService, JobContext } from '../notifications/notifications.service';
 
-// In JobsService / AdminJobsService / PaymentsService:
+// In JobsService / AdminService / PaymentsService:
 await this.notificationsService.send('job_received', {
   jobId: job.id,
   userId: user.id,
   user: {
-    name:         user.name,
-    phone:        user.phone,
-    houseNumber:  user.houseNumber,
-    notifSms:     user.notifSms,
+    name:          user.name,
+    phone:         user.phone,
+    houseNumber:   user.houseNumber,
+    notifSms:      user.notifSms,
     notifWhatsapp: user.notifWhatsapp,
   },
   job: {
@@ -199,8 +199,6 @@ await this.notificationsService.send('job_received', {
   },
 });
 ```
-
-When the jobs module is built, a convenience method `sendForJob(jobId, trigger)` can be added that loads the job and user from DB internally.
 
 ---
 

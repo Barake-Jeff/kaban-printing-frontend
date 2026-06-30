@@ -2,6 +2,7 @@
 kaban-frontend/node_modules/
 kaban-frontend/.nuxt/
 kaban-frontend/.output/
+kaban-frontend/.env/
 
 # Backend
 kaban-backend/node_modules/

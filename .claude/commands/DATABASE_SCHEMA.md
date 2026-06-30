@@ -9,7 +9,7 @@
 ## Database name
 
 ```
-printease
+kaban
 ```
 
 ---
@@ -25,6 +25,7 @@ printease
 | `refresh_tokens`     | JWT refresh token store (for logout/blacklist)   |
 | `push_subscriptions` | Web Push subscription endpoints per user         |
 | `notifications_log`  | Record of every notification sent (push/SMS/WA)  |
+| `settings`           | Admin-configurable key-value settings store      |
 
 ---
 
@@ -39,6 +40,7 @@ CREATE TABLE users (
   estate         VARCHAR(255) NOT NULL,
   password_hash  VARCHAR(255) NOT NULL,
   role           ENUM('customer', 'clerk', 'admin') NOT NULL DEFAULT 'customer',
+  active         TINYINT(1)   NOT NULL DEFAULT 1,      -- FALSE = deactivated staff
   notif_sms      BOOLEAN      NOT NULL DEFAULT TRUE,
   notif_whatsapp BOOLEAN      NOT NULL DEFAULT FALSE,
   credit_balance DECIMAL(10,2) NOT NULL DEFAULT 0.00,
@@ -50,21 +52,24 @@ CREATE TABLE users (
 
 **Sequelize model property mapping:**
 
-| MySQL column     | TypeScript property  |
-|------------------|----------------------|
-| `id`             | `id`                 |
-| `name`           | `name`               |
-| `phone`          | `phone`              |
-| `house_number`   | `houseNumber`        |
-| `estate`         | `estate`             |
-| `password_hash`  | `passwordHash`       |
-| `role`           | `role`               |
-| `notif_sms`      | `notifSms`           |
-| `notif_whatsapp` | `notifWhatsapp`      |
-| `credit_balance` | `creditBalance`      |
-| `loyalty_points` | `loyaltyPoints`      |
-| `created_at`     | `createdAt`          |
-| `updated_at`     | `updatedAt`          |
+| MySQL column     | TypeScript property  | Notes                              |
+|------------------|----------------------|------------------------------------|
+| `id`             | `id`                 |                                    |
+| `name`           | `name`               |                                    |
+| `phone`          | `phone`              |                                    |
+| `house_number`   | `houseNumber`        |                                    |
+| `estate`         | `estate`             |                                    |
+| `password_hash`  | `passwordHash`       |                                    |
+| `role`           | `role`               |                                    |
+| `active`         | `active`             | Default TRUE; FALSE = deactivated  |
+| `notif_sms`      | `notifSms`           |                                    |
+| `notif_whatsapp` | `notifWhatsapp`      |                                    |
+| `credit_balance` | `creditBalance`      |                                    |
+| `loyalty_points` | `loyaltyPoints`      |                                    |
+| `created_at`     | `createdAt`          |                                    |
+| `updated_at`     | `updatedAt`          |                                    |
+
+> **Staff deactivation:** Do NOT delete staff records. Set `active = false` to deactivate and `active = true` to reactivate. This preserves audit history.
 
 ---
 
@@ -182,10 +187,10 @@ CREATE TABLE payments (
   mpesa_ref       VARCHAR(50)   NULL,
   mpesa_receipt   VARCHAR(100)  NULL,
   phone           VARCHAR(20)   NULL,
-  merchant_req_id VARCHAR(100)  NULL,   -- used to match STK Push callback
-  checkout_req_id VARCHAR(100)  NULL,   -- Daraja CheckoutRequestID
-  result_code     VARCHAR(10)   NULL,   -- Daraja result code from callback
-  result_desc     VARCHAR(500)  NULL,   -- Daraja result description
+  merchant_req_id VARCHAR(100)  NULL,
+  checkout_req_id VARCHAR(100)  NULL,
+  result_code     VARCHAR(10)   NULL,
+  result_desc     VARCHAR(500)  NULL,
   paid_at         DATETIME      NULL,
   created_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -197,7 +202,7 @@ CREATE TABLE payments (
 );
 ```
 
-The `checkout_req_id` index is critical — Daraja's callback identifies the payment using `CheckoutRequestID` and we need to find the payment record fast.
+The `checkout_req_id` index is critical — Daraja's callback identifies the payment using `CheckoutRequestID`.
 
 ---
 
@@ -224,16 +229,13 @@ Store a hash of the token, not the token itself. On refresh, hash the incoming t
 
 ## Table: `push_subscriptions`
 
-Stores Web Push API subscription objects per user. One row per active browser/device.
-Replacing a subscription (re-subscribing) deletes the old row for that user and inserts a new one.
-
 ```sql
 CREATE TABLE push_subscriptions (
   id         VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
   user_id    VARCHAR(36) NOT NULL,
-  endpoint   TEXT        NOT NULL,   -- browser-generated push URL
-  p256dh     TEXT        NOT NULL,   -- ECDH public key
-  auth       TEXT        NOT NULL,   -- authentication secret
+  endpoint   TEXT        NOT NULL,
+  p256dh     TEXT        NOT NULL,
+  auth       TEXT        NOT NULL,
   created_at DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -243,21 +245,11 @@ CREATE TABLE push_subscriptions (
 
 **Sequelize model:** `src/modules/push/models/push-subscription.model.ts`
 
-**Sequelize model property mapping:**
-
-| MySQL column | TypeScript property |
-|--------------|---------------------|
-| `user_id`    | `userId`            |
-| `endpoint`   | `endpoint`          |
-| `p256dh`     | `p256dh`            |
-| `auth`       | `auth`              |
-| `created_at` | `createdAt`         |
+One subscription per user — subscribing again replaces the old row.
 
 ---
 
 ## Table: `notifications_log`
-
-Records every notification attempt regardless of outcome. The `job_id` column is a plain string (no FK) until the `jobs` table is built.
 
 ```sql
 CREATE TABLE notifications_log (
@@ -266,19 +258,17 @@ CREATE TABLE notifications_log (
   user_id     VARCHAR(36)  NOT NULL,
   channel     ENUM('sms', 'whatsapp', 'push') NOT NULL,
   trigger     VARCHAR(100) NOT NULL,
-  phone       VARCHAR(20)  NULL,        -- NULL for push channel
+  phone       VARCHAR(20)  NULL,
   message     TEXT         NOT NULL,
   status      ENUM('sent', 'failed') NOT NULL DEFAULT 'sent',
-  provider_id VARCHAR(200) NULL,        -- AT message ID or push endpoint hash
+  provider_id VARCHAR(200) NULL,
   sent_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
   INDEX idx_job_id (job_id)
 );
 ```
-
-> Note: `job_id` has no FK constraint yet because the `jobs` table is not yet built.
-> Add the FK (`REFERENCES jobs(id) ON DELETE CASCADE`) when the jobs module is implemented.
 
 **Sequelize model property mapping:**
 
@@ -293,6 +283,36 @@ CREATE TABLE notifications_log (
 | `status`      | `status`            |
 | `provider_id` | `providerId`        |
 | `sent_at`     | `sentAt`            |
+
+---
+
+## Table: `settings`
+
+Stores admin-configurable key-value pairs. Values are JSON-serialized strings.
+
+```sql
+CREATE TABLE settings (
+  `key`   VARCHAR(50) PRIMARY KEY,
+  `value` LONGTEXT    NOT NULL
+);
+```
+
+**Sequelize model:** `src/modules/admin/models/setting.model.ts`
+
+```typescript
+@Table({ tableName: 'settings', timestamps: false })
+export class Setting extends Model {
+  @Column({ type: DataType.STRING(50), primaryKey: true })
+  key: string;
+
+  @Column({ type: DataType.TEXT('long'), allowNull: false })
+  value: string;
+}
+```
+
+Known keys: `business`, `pricing`, `notificationMatrix`.
+Values are `JSON.stringify`-ed objects.
+Use `model.upsert({ key, value })` to save — never `create` (would fail on duplicate key).
 
 ---
 
@@ -315,19 +335,15 @@ function calculateCost(pages, copies, colorMode, sides, deliveryType): number {
 }
 ```
 
-This must match `calculateCost()` in `frontend/src/data/dummy.js` exactly.
-
 ---
 
 ## Migration strategy
 
-Use Sequelize `synchronize: true` in development (auto-creates tables).
-Use Sequelize CLI migrations for production schema changes.
+Use Sequelize `synchronize: true` in development (auto-creates/alters tables).
+For new columns on existing tables in dev, run ALTER TABLE manually if `synchronize` doesn't pick them up (e.g. after a hot-reload without full restart):
 
-```bash
-npx sequelize-cli migration:generate --name add-job-status-index
-npx sequelize-cli db:migrate
-npx sequelize-cli db:migrate:undo
+```sql
+ALTER TABLE users ADD COLUMN active TINYINT(1) NOT NULL DEFAULT 1;
 ```
 
 Never use `sync({ force: true })` in production.
@@ -337,7 +353,8 @@ Never use `sync({ force: true })` in production.
 ## Seed data (for development)
 
 ```
-Admin:    phone 0700000000, password admin, role admin
+Admin:    phone 0700000000, password admin,    role admin,    active true
+Clerk:    phone 0711000000, password clerk,    role clerk,    active true
 Customer: phone 0712345678, password password, role customer, houseNumber 14B, estate Westlands Gardens
 ```
 
